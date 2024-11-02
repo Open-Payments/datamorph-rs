@@ -1,6 +1,8 @@
 # datamorph-rs
 A powerful Rust library for transforming data structures using declarative specifications with JSONLogic support. Built for performance, type safety, and extensibility.
 
+[![Crates.io](https://img.shields.io/crates/v/datamorph-rs.svg)](https://crates.io/crates/datamorph-rs)
+[![Documentation](https://docs.rs/datamorph-rs/badge.svg)](https://docs.rs/datamorph-rs)
 [![License](https://img.shields.io/badge/license-apache-blue.svg)](LICENSE)
 
 ## Overview
