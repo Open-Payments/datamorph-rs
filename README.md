@@ -53,8 +53,8 @@ assert_eq!(result["fullName"], "JOHN DOE");
 
 ## Documentation
 
-- [Usage Guide](docs/USAGE.md) - Detailed usage instructions
-- [API Reference](docs/REFERENCE.md) - Complete API documentation
+- [Usage Guide](USAGE.md) - Detailed usage instructions
+- [API Reference](REFERENCE.md) - Complete API documentation
 - [Examples](examples/) - Example implementations
 
 ## Contributing
