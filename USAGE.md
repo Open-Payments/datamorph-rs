@@ -1,105 +1,92 @@
 # Usage Guide
 
-This guide provides detailed instructions for using datamorph-rs in your projects.
-
 ## Table of Contents
 
 1. [Installation](#installation)
 2. [Basic Usage](#basic-usage)
-3. [Transformation Specifications](#transformation-specifications)
-4. [Built-in Functions](#built-in-functions)
+3. [Transform Types](#transform-types)
+4. [Conditions](#conditions)
 5. [Error Handling](#error-handling)
-6. [Best Practices](#best-practices)
 
 ## Installation
 
-Add datamorph-rs to your project:
+Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 datamorph-rs = "0.1.0"
+serde_json = "1.0"
 ```
 
 ## Basic Usage
 
-### Simple Field Transformation
+### Simple Transform
 ```rust
 use datamorph_rs::Datamorph;
 use serde_json::json;
 
-let spec = r#"{
-    "mappings": {
-        "name": {
-            "target": "fullName",
-            "transform": "uppercase"
-        }
+let spec = r#"[
+    {
+        "type": "field",
+        "source": "name",
+        "target": "fullName",
+        "transform": "uppercase"
     }
-}"#;
-
-let input = json!({
-    "name": "john doe"
-});
+]"#;
 
 let transformer = Datamorph::from_json(spec)?;
 let result: serde_json::Value = transformer.transform(input)?;
 ```
 
-### Multiple Transformations
-```rust
-let spec = r#"{
-    "mappings": {
-        "description": {
-            "target": "summary",
-            "transform": ["trim", "uppercase"]
-        }
-    }
-}"#;
-```
+## Transform Types
 
-## Transformation Specifications
-
-### Basic Structure
+### Field Transform
 ```json
 {
-    "mappings": {
-        "sourceField": {
-            "target": "targetField",
-            "transform": "transformationFunction"
-        }
+    "type": "field",
+    "source": "user.name",
+    "target": "profile.fullName",
+    "transform": "uppercase"
+}
+```
+
+### Concatenation
+```json
+{
+    "type": "concat",
+    "sources": ["city", "country"],
+    "target": "location",
+    "separator": ", "
+}
+```
+
+### Split
+```json
+{
+    "type": "split",
+    "source": "fullAddress",
+    "separator": ",",
+    "targets": {
+        "street": { "index": 0 },
+        "city": { "index": 1 }
     }
 }
 ```
 
-### Multiple Transformations
+## Conditions
+
+Transforms can include JSONLogic conditions:
+
 ```json
 {
-    "mappings": {
-        "sourceField": {
-            "target": "targetField",
-            "transform": ["function1", "function2"]
-        }
-    }
-}
-```
-
-## Built-in Functions
-
-### String Transformations
-- `uppercase`: Convert string to uppercase
-- `lowercase`: Convert string to lowercase
-- `toString`: Convert value to string
-
-### Examples
-```json
-{
-    "mappings": {
-        "name": {
-            "target": "upperName",
-            "transform": "uppercase"
-        },
-        "age": {
-            "target": "ageString",
-            "transform": "toString"
-        }
+    "type": "field",
+    "source": "name",
+    "target": "fullName",
+    "transform": "uppercase",
+    "condition": {
+        "and": [
+            {"!!": {"var": "name"}},
+            {"==": [{"var": "type"}, "person"]}
+        ]
     }
 }
 ```
@@ -112,9 +99,9 @@ use datamorph_rs::{Datamorph, Error};
 match Datamorph::from_json(spec) {
     Ok(transformer) => {
         match transformer.transform(input) {
-            Ok(result) => println!("Success: {}", result),
-            Err(Error::TransformError(msg)) => eprintln!("Transform failed: {}", msg),
-            Err(e) => eprintln!("Other error: {}", e),
+            Ok(result) => println!("Success: {}", 
+                serde_json::to_string_pretty(&result)?),
+            Err(e) => eprintln!("Transform error: {}", e),
         }
     },
     Err(e) => eprintln!("Failed to parse spec: {}", e),
@@ -124,16 +111,21 @@ match Datamorph::from_json(spec) {
 ## Best Practices
 
 1. **Specification Organization**
-   - Keep specifications simple and focused
+   - Use array format for clear transform ordering
+   - Group related transforms together
    - Use meaningful field names
-   - Document complex transformations
 
-2. **Error Handling**
+2. **Conditions**
+   - Use JSONLogic for complex conditions
+   - Validate field existence
+   - Group conditions logically
+
+3. **Error Handling**
    - Always handle potential errors
-   - Validate specifications before use
-   - Log transformation errors
+   - Validate specifications
+   - Consider error recovery strategies
 
-3. **Performance**
-   - Minimize number of transformations
-   - Use appropriate data types
-   - Consider batch processing for large datasets
+4. **Performance**
+   - Order transforms efficiently
+   - Use appropriate conditions
+   - Consider batch processing

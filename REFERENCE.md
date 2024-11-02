@@ -8,36 +8,52 @@ Main entry point for transformations.
 
 ```rust
 pub struct Datamorph {
-    spec: TransformSpec,
+    transforms: Vec<Transform>,
 }
 
 impl Datamorph {
     /// Create a new instance from JSON specification
-    pub fn from_json(spec: &str) -> Result<Self>
+    pub fn from_json(spec: &str) -> Result<Self, Error>
 
     /// Transform input data according to specification
-    pub fn transform<T, U>(&self, input: T) -> Result<U>
+    pub fn transform<T, U>(&self, input: T) -> Result<U, Error>
     where
         T: Serialize,
         U: DeserializeOwned
 }
 ```
 
-### TransformSpec
-
-Defines the transformation specification.
+### Transform Types
 
 ```rust
-pub struct TransformSpec {
-    pub mappings: HashMap<String, Mapping>,
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+pub enum TransformType {
+    #[serde(rename = "field")]
+    Field {
+        source: String,
+        target: String,
+        transform: Option<String>,
+    },
+    #[serde(rename = "concat")]
+    Concat {
+        sources: Vec<String>,
+        target: String,
+        separator: Option<String>,
+    },
+    #[serde(rename = "split")]
+    Split {
+        source: String,
+        targets: HashMap<String, SplitTarget>,
+        separator: Option<String>,
+    },
 }
 
-impl TransformSpec {
-    /// Parse from JSON string
-    pub fn from_json(json: &str) -> Result<Self>
-
-    /// Transform a value
-    pub fn transform(&self, input: &Value) -> Result<Value>
+#[derive(Debug, Deserialize)]
+pub struct Transform {
+    #[serde(flatten)]
+    pub transform_type: TransformType,
+    pub condition: Option<Value>,
 }
 ```
 
@@ -45,108 +61,89 @@ impl TransformSpec {
 
 ```rust
 pub enum Error {
-    /// Failed to parse specification
-    SpecParseError(String),
+    /// JSON error
+    Json(serde_json::Error),
 
-    /// Error during transformation
-    TransformError(String),
+    /// Transform error
+    Transform(String),
 
-    /// JSON serialization/deserialization error
-    JsonError(serde_json::Error),
+    /// Logic error
+    Logic(String),
 
-    /// Other errors
-    Other(String),
+    /// Missing field
+    MissingField(String),
 }
 ```
 
 ## Specification Format
 
-### Basic Specification
+### Field Transform
 ```json
 {
-    "mappings": {
-        "sourceField": {
-            "target": "targetField",
-            "transform": "transformFunction"
-        }
+    "type": "field",
+    "source": "sourceField",
+    "target": "targetField",
+    "transform": "uppercase",
+    "condition": {
+        "!!": {"var": "sourceField"}
     }
 }
 ```
 
-### Multiple Transformations
+### Concatenation Transform
 ```json
 {
-    "mappings": {
-        "sourceField": {
-            "target": "targetField",
-            "transform": ["function1", "function2"]
-        }
+    "type": "concat",
+    "sources": ["field1", "field2"],
+    "target": "combinedField",
+    "separator": ", ",
+    "condition": {
+        "and": [
+            {"!!": {"var": "field1"}},
+            {"!!": {"var": "field2"}}
+        ]
     }
 }
 ```
 
-## Built-in Functions
-
-### String Functions
-| Function    | Description                 | Input Type | Output Type |
-|-------------|----------------------------|------------|-------------|
-| uppercase   | Convert to uppercase       | String     | String      |
-| lowercase   | Convert to lowercase       | String     | String      |
-| toString    | Convert value to string    | Any        | String      |
-
-## Examples
-
-### Basic Transform
-```rust
-use datamorph_rs::Datamorph;
-use serde_json::json;
-
-let spec = r#"{
-    "mappings": {
-        "name": {
-            "target": "fullName",
+### Split Transform
+```json
+{
+    "type": "split",
+    "source": "fullAddress",
+    "separator": ",",
+    "targets": {
+        "street": {
+            "index": 0,
             "transform": "uppercase"
         },
-        "age": {
-            "target": "userAge",
-            "transform": "toString"
+        "city": {
+            "index": 1
         }
     }
-}"#;
-
-let input = json!({
-    "name": "john doe",
-    "age": 30
-});
-
-let transformer = Datamorph::from_json(spec)?;
-let result: serde_json::Value = transformer.transform(input)?;
-
-assert_eq!(result["fullName"], "JOHN DOE");
-assert_eq!(result["userAge"], "30");
+}
 ```
 
-### Error Handling
-```rust
-use datamorph_rs::{Datamorph, Error};
+## JSONLogic Conditions
 
-let spec = r#"{
-    "mappings": {
-        "age": {
-            "target": "userAge",
-            "transform": "invalidFunction"
-        }
-    }
-}"#;
+Common condition patterns:
 
-match Datamorph::from_json(spec) {
-    Ok(transformer) => {
-        let input = json!({ "age": 30 });
-        match transformer.transform(input) {
-            Ok(result) => println!("Success: {}", result),
-            Err(e) => eprintln!("Transform error: {}", e),
-        }
-    },
-    Err(e) => eprintln!("Spec parse error: {}", e),
-}
+```json
+// Field exists
+{"!!": {"var": "fieldName"}}
+
+// Value equals
+{"==": [{"var": "field"}, "value"]}
+
+// Multiple conditions (AND)
+{"and": [
+    {"!!": {"var": "field1"}},
+    {"==": [{"var": "field2"}, "value"]}
+]}
+
+// Multiple conditions (OR)
+{"or": [
+    {"!!": {"var": "field1"}},
+    {"!!": {"var": "field2"}}
+]}
 ```

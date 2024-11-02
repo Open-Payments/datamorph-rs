@@ -1,18 +1,16 @@
 use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, Error>;
-
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Failed to parse specification: {0}")]
-    SpecParseError(String),
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
 
     #[error("Transform error: {0}")]
-    TransformError(String),
+    Transform(String),
 
-    #[error("JSON error: {0}")]
-    JsonError(#[from] serde_json::Error),
+    #[error("JSONLogic error: {0}")]
+    Logic(String),
 
-    #[error("Other error: {0}")]
-    Other(String),
+    #[error("Missing field: {0}")]
+    MissingField(String),
 }

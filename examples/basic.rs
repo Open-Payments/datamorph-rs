@@ -1,31 +1,36 @@
 use datamorph_rs::Datamorph;
 use serde_json::json;
 
-fn main() -> anyhow::Result<()> {
-    // Define transformation spec
-    let spec = r#"{
-        "mappings": {
-            "name": {
-                "target": "fullName",
-                "transform": "uppercase"
-            },
-            "age": {
-                "target": "userAge",
-                "transform": "toString"
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let spec = r#"[
+        {
+            "type": "field",
+            "source": "name",
+            "target": "fullName",
+            "transform": "uppercase",
+            "condition": {
+                "==": [{"var": "type"}, "person"]
             }
+        },
+        {
+            "type": "concat",
+            "sources": ["city", "country"],
+            "target": "location",
+            "separator": ", "
         }
-    }"#;
+    ]"#;
 
-    // Create input data
     let input = json!({
-        "name": "john doe",
-        "age": 30
+        "name": "John Doe",
+        "type": "person",
+        "city": "New York",
+        "country": "USA"
     });
 
-    // Initialize transformer and apply transformation
-    let datamorph = Datamorph::from_json(spec)?;
-    let result: serde_json::Value = datamorph.transform(input)?;
-
-    println!("Transformed data: {}", result);
+    let transformer = Datamorph::from_json(spec)?;
+    let result: serde_json::Value = transformer.transform(input)?;
+    
+    println!("Transformed: {}", serde_json::to_string_pretty(&result)?);
+    
     Ok(())
 }
