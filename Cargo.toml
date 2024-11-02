@@ -1,6 +1,6 @@
 [package]
 name = "datamorph-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Harishankar Narayanan <nharishankar@gmail.com>"]
 description = "Data transformation library using declarative specifications"
